@@ -23,7 +23,6 @@ class CreateUserSchema(BaseModel):
 class UserSchema(CreateUserSchema):
     full_name: str | None = None 
     address: str | None = None
-    _id: str | None = None
 
     @validator('full_name')
     def fullname_validator(cls, v):
