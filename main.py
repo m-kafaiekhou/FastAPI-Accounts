@@ -1,14 +1,14 @@
 from functools import lru_cache
 from fastapi import FastAPI
 import uvicorn
-from api.v1 import authorization
+from api.v1 import accounts
 
 from config.settings import settings
 
 
 app = FastAPI()
 
-app.include_router(authorization.router, prefix='/api')
+app.include_router(accounts.router, prefix='/api')
 
 
 if __name__ == "__main__":

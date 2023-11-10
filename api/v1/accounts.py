@@ -2,14 +2,13 @@ from typing import Dict
 from fastapi import Body, Depends, HTTPException, Header, APIRouter, Response
 
 from schemas.authorization_schemas import *
-from services.authentications import JWTBearer
-from services.accounts import AccountsRequests
-from utils.auth import generate_token, check_password
-from services.redis import get_redis
+from services.authentications import JWTBearer       
+from utils.auth import check_password, hash_password
 from services.mongo import get_mongo
+from bson.objectid import ObjectId
 
 
-router = APIRouter(prefix='/auth')
+router = APIRouter(prefix='/accounts')
 
 user_collection = get_mongo()['user']
 
@@ -24,76 +23,56 @@ async def login(
     if not user:
         raise HTTPException(status_code=403, detail="Invalid username or password")
     
-    valid_cred = await check_password(payload.password, user.password) 
+    valid_cred = await check_password(payload.password, user['password']) 
 
     if not valid_cred:
         raise HTTPException(status_code=403, detail="Invalid username or password")
-        
-    return Response()
+    print('check'*10)
+    return {'user_id': str(user['_id']), 'username': user['username']}
     
 
 
 
 @router.post('/register', response_model=Dict)
 async def register(
-        payload: UserSchema = Body(),
+        payload: CreateUserSchema = Body(),
+    ):
+    print('acc 1'* 20)
+
+    existing_user = await user_collection.find_one({'$or': [{'username': payload.username}, {'email': payload.email}]})
+    print('')
+    if existing_user:
+        raise HTTPException(status_code=422, detail="User already exists")
+    
+    new_user = payload.model_dump()
+
+    hashed_pass = await hash_password(new_user['password'])
+    new_user['password'] = hashed_pass
+
+    await user_collection.insert_one(new_user)
+
+    new_user['_id'] = str(new_user['_id'])
+    print('acc 2'* 20)
+
+    return Response(content=new_user, status_code=201)
+
+
+@router.get('/profile')
+async def profile(
+        token: str = Depends(JWTBearer())
+    ):
+    print(token['user_identifier'])
+    document_id = ObjectId(token['user_identifier'])
+    print(document_id)
+    user = await user_collection.find_one({'_id': document_id})
+    user['_id'] = str(user['_id'])
+    del user['password']
+    return user
+
+
+@router.post('/reset-password', response_model=Dict)
+async def reset_password(
+        payload: CreateUserSchema = Body(),
     ):
 
-    adapter = AccountsRequests()
-
-    response = await adapter.register(payload.model_dump())
-
-    return response
-
-
-@router.post('/logout', response_model=Dict)
-async def logout(
-        token: bool = Depends(JWTBearer())
-    ):
-
-    jti = token['jti']
-    get_redis().delete(jti)
-
-    return {'message': 'Logged out'}
-
-
-@router.get('/refresh')
-async def refresh(token: TokenSchema = Body()):
-    try:
-        payload = JWTBearer().validate_token(token)
-    except:
-        raise HTTPException(403, detail='Invalid or expired token')
-    else:
-        new_token = await generate_token(payload['user_identifier'])
-        return new_token
-
-
-@router.get('/testauth')
-async def testauth(token: bool = Depends(JWTBearer())):
-    return {'message': 'Authenticated Ahmad Mohsen'}
-
-
-# @router.post('/reset-password', response_model=Dict)
-# async def reset_password(
-#         payload: CreateUserSchema = Body(),
-#     ):
-
-#     pass
-
-
-# @router.post('/forgot-password', response_model=Dict)
-# async def forgot_password(
-#         payload: CreateUserSchema = Body(),
-#     ):
-
-#     pass
-
-
-# @router.post('/forgot-password-reset', response_model=Dict)
-# async def forgot_password_reset(
-#         payload: CreateUserSchema = Body(),
-#     ):
-
-#     pass
-
-
+    pass

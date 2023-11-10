@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "Authorization Service"
     secret_key: str
     jwt_algorithm: str
+    jwt_token_prefix: str
 
     redis_host: str
     redis_port: str

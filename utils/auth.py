@@ -55,7 +55,7 @@ async def generate_token(user_id) -> dict:
 
 
 async def decode(token):
-    decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=settings.JWT_ALGORITHM)
+    decoded_token = jwt.decode(token, settings.secret_key, algorithm=settings.jwt_algorithm)
     return decoded_token
 
 
